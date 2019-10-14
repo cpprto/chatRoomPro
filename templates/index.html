@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>聊天室</title>
+</head>
+<body style="margin: 0">
+    <!-- 聊天室当前状态 -->
+    <div style="text-align: center; background-color: rgba(87, 128, 87, 0.6)">
+        <!-- 头像与用户名 -->
+        <div style="font-weight: bolder">
+             <div>
+                <img id="pic" src="/avatar/{{ RET.DATA.avatar }}" alt="{{ RET.DATA.username }}"
+                     style="width: 65px; height: 65px; border-radius: 50%;">
+                <div id="userName" style="font-size: 24px;">
+                    {{ RET.DATA.username }}
+                </div>
+             </div>
+        </div>
+        <!-- 聊天室在线人数与具体用户 -->
+        <div style="font-weight: bolder; border: 1px solid rgba(87, 128, 87, 0.6);">
+            <div>
+            当前在线人数: <span id="online"></span> 人
+            </div>
+            <div>
+            在线用户: <span id="detail"></span>
+            </div>
+        </div>
+        <button onclick="flush()">刷新查看当前聊天室用户状态</button>
+    </div>
+    <br />
+    <!-- 文字与图片消息相关 -->
+    <div style="text-align: center;">
+        <!-- 群聊相关 -->
+        <div style="margin-right: 10px; text-align: left; display: inline-block">
+            <div id="textO2m"
+                      style="width: 550px; height: 800px; font-weight: bolder;
+                      border: 1px solid black; overflow-y: auto; display: inline-block; padding: 5px">
+                <div style="text-align: right; display: inline-block;">
+                    <h1 style="text-align: left">群聊</h1>
+                    <!-- 语音消息相关 -->
+                    <div style="text-align: right;">
+                        <audio id="playerO2m" autoplay controls></audio>
+                        <div>
+                            <button onclick="startRe()">开始录音</button>
+                            <button onclick="aiReO2m()" style="background-color: cornflowerblue">发送语音指令</button>
+                            <button onclick="stopReO2m()">生成语音消息</button>
+                        </div>
+                    </div>
+                    <br />
+                    <span style="visibility: hidden;">
+                        <label for="nothing">选择好友: </label>
+                        <input id="nothing" type="text" />
+                    </span>
+                    <label for="contentO2m">消息: </label>
+                    <input type="text" id="contentO2m" />
+                    <button onclick="send_msgO2m()">发送</button>
+                    <br />
+                    <br />
+                    上传图片: <input id="jpgO2m" type="file" />
+                </div>
+                <hr />
+            </div>
+        </div>
+        <!-- 私聊相关 -->
+        <div style="margin-left: 10px; text-align: right; display: inline-block;">
+            <div id="textO2o"
+                      style="width: 550px; height: 800px; font-weight: bolder;
+                      border: 1px solid black; overflow-y: auto; display: inline-block; padding: 5px">
+                <div style="text-align: right; display: inline-block;">
+                    <h1 style="text-align: left">私聊</h1>
+                    <!-- 语音消息相关 -->
+                    <div style="text-align: right;">
+                        <audio id="playerO2o" autoplay controls></audio>
+                        <div>
+                            <button onclick="startRe()">开始录音</button>
+                            <button onclick="aiReO2o()" style="background-color: cornflowerblue">发送语音指令</button>
+                            <button onclick="stopReO2o()">生成语音消息</button>
+                        </div>
+                    </div>
+                    <br />
+                    <span>
+                        <label for="toUser">选择好友: </label>
+                        <input id="toUser" type="text" />
+                    </span>
+                    <label for="contentO2o">消息: </label>
+                    <input type="text" id="contentO2o" />
+                    <button onclick="send_msgO2o()">发送</button>
+                    <br />
+                    <br />
+                    上传图片: <input id="jpgO2o" type="file" />
+                </div>
+                <hr />
+            </div>
+        </div>
+    </div>
+</body>
+<!-- Jquery-3.3.1 -->
+<script type="application/javascript" src="/static/jquery-3.3.1.min.js"></script>
+<!-- 录音组件 -->
+<script type="text/javascript" src="/static/Recorder.js"></script>
+<!-- 获取聊天室当前状态 (在线人数与在线用户) -->
+<script type="text/javascript">
+    let socket = new WebSocket("ws:127.0.0.1:8527/get_user_info");
+    socket.onopen = function (event) {
+        console.log('WebSocket open');  // 成功连接上 WebSocket
+        socket.send('...');  // 发送数据到服务端
+        console.log(event);
+    };
+    socket.onmessage = function (e) {
+        console.log(e);
+        let live_info = JSON.parse(e.data);
+        console.log(live_info);
+        document.getElementById("online").innerText = live_info.online;
+        document.getElementById("detail").innerText = live_info.detail;
+    };
+    socket.onclose = function(e){
+      console.log(e);
+      socket.close();  // 关闭连接
+    };
+
+    function flush() {
+        socket.onopen(event);
+    }
+</script>
+<!-- 图片消息相关 -->
+<script type="text/javascript">
+    $("#jpgO2m").change(function(){   
+     let file = this.files[0];
+       if (window.FileReader) {    
+                let reader = new FileReader();    
+                reader.readAsDataURL(file);    
+                //监听文件读取结束后事件    
+              reader.onloadend = function (e) {
+                let picData = "<img src='" + e.target.result + "'" + "style='width: 40%; height: 40%'>";
+                document.getElementById("contentO2m").value = picData;
+    {#            $(".img").attr("src",e.target.result);    //e.target.result就是最后的路径地址#}
+                };    
+           }
+    });
+
+    $("#jpgO2o").change(function(){   
+     let file = this.files[0];
+       if (window.FileReader) {    
+                let reader = new FileReader();    
+                reader.readAsDataURL(file);    
+                //监听文件读取结束后事件    
+              reader.onloadend = function (e) {
+                let picData = "<img src='" + e.target.result + "'" + "style='width: 40%; height: 40%'>";
+                document.getElementById("contentO2o").value = picData;
+    {#            $(".img").attr("src",e.target.result);    //e.target.result就是最后的路径地址#}
+                };    
+           }
+    });
+
+</script>
+<!-- 文字消息与消息传输相关 -->
+<script type="text/javascript">
+    let wsO2m = null;
+    let wsO2o = null;
+    function login () {
+        let username = "{{ RET.DATA.username }}";
+        wsO2m = new WebSocket("ws://127.0.0.1:8527/o2m/" + username);
+        wsO2m.onmessage = function (messageEvent) {
+            let strObj = JSON.parse(messageEvent.data);
+            let text = document.getElementById("textO2m");
+            let content = document.createElement("p");
+            if (strObj.fromUser === "{{ RET.DATA.username }}") {
+                content.innerHTML =
+                    strObj.chat
+                    + "\t"
+                    + strObj.avatar
+                    + "<div style='color: green; margin-bottom: 10px;'>"
+                    + strObj.fromUser
+                    + "</div>";
+                content.style.textAlign = "right";
+                text.appendChild(content);
+            }else{
+                content.innerHTML =
+                    strObj.avatar
+                    + "\t"
+                    + strObj.chat
+                    + "<div style='color: blue;  margin-bottom: 10px;'>"
+                    + strObj.fromUser
+                    + "</div>";
+                content.style.textAlign = "left";
+                text.appendChild(content);
+            }
+            document.getElementById("textO2m").scrollTop = document.getElementById("textO2m").scrollHeight;
+        };
+
+        wsO2o = new WebSocket("ws://127.0.0.1:8527/o2o/" + username);
+        wsO2o.onmessage = function (messageEvent) {
+            let strObj = JSON.parse(messageEvent.data);
+            let text = document.getElementById("textO2o");
+            let content = document.createElement("p");
+            if (strObj.toUser === "{{ RET.DATA.username }}") {
+                content.innerHTML =
+                    strObj.avatar
+                    + "\t"
+                    + strObj.chat
+                    + "<div style='color: blue;'>"
+                    + strObj.fromUser
+                    + "</div>";
+                content.style.textAlign = "left";
+                text.appendChild(content);
+            }else{
+                content.innerHTML =
+                    strObj.chat
+                    + "\t"
+                    + strObj.avatar
+                    + "<div style='color: green'>"
+                    + strObj.fromUser
+                    + "</div>";
+                content.style.textAlign = "right";
+                text.appendChild(content);
+            }
+
+            document.getElementById("textO2o").scrollTop = document.getElementById("textO2o").scrollHeight;
+        };
+    } login();
+
+    let avatar = document.getElementById("pic").outerHTML;
+    let avatarHtml = avatar.replace(
+        "width: 65px; height: 65px; border-radius: 50%;",
+        "width: 35px; height: 35px; border-radius: 50%;");
+
+    function send_msgO2m() {
+        let username = "{{ RET.DATA.username }}";
+        let content = document.getElementById("contentO2m").value;
+
+        let sendStr = {
+            fromUser:username,
+            chat:content,
+            avatar:avatarHtml
+        };
+        wsO2m.send(JSON.stringify(sendStr));
+        document.getElementById("contentO2m").value = "";
+    }
+
+    function send_msgO2o() {
+        let username = "{{ RET.DATA.username }}";
+        let toUser = document.getElementById("toUser").value;
+        let content = document.getElementById("contentO2o").value;
+
+        let sendStr = {
+            fromUser:username,
+            toUser:toUser,
+            chat:content,
+            avatar:avatarHtml
+        };
+        wsO2o.send(JSON.stringify(sendStr));
+        document.getElementById("contentO2o").value = "";
+    }
+</script>
+<!-- 语音消息相关 -->
+<script type="application/javascript">
+    let serve = "http://127.0.0.1:9527";
+
+    // ------------------------------- Audio 相关START ----------------------------------
+    let recordObj = null;
+    let audio_context = new AudioContext();//音频内容对象
+    navigator.getUserMedia = (
+        navigator.getUserMedia       ||
+        navigator.webkitGetUserMedia ||
+        navigator.mozGetUserMedia    ||
+        navigator.msGetUserMedia);
+
+    navigator.getUserMedia({audio: true}, create_stream, function (err) {
+        console.log(err)
+    });
+
+    function create_stream(user_media) {
+        let stream_input = audio_context.createMediaStreamSource(user_media);
+        recordObj = new Recorder(stream_input);
+    }
+    // --------------------------------- Audio 相关END ----------------------------------
+
+    // 开始录音
+    function startRe() {
+        recordObj.record();
+    }
+
+    // 发送语音消息触发停止录音
+    function stopReO2m() {
+        recordObj.stop();
+
+        recordObj.exportWAV(function (wav_file) {
+            let objectUrl = JSON.stringify(window.URL.createObjectURL(wav_file));
+            let formData = new FormData();
+
+            formData.append("media", wav_file);
+            formData.append("src", objectUrl);
+
+            $.ajax({
+                url: serve + "/media_uploader",
+                type: 'post',
+                processData: false,
+                contentType: false,
+                data: formData,
+                dataType: 'json',
+                success: function (data) {
+                    console.log(data);
+                    if (data.CODE === 0) {
+                        document.getElementById("playerO2m").src = serve + "/get_music/SendOK.mp3";
+
+                        let audioMsg = document.createElement("audio");
+                        audioMsg.setAttribute("controls", "controls");
+                        audioMsg.src = objectUrl.slice(27, -1) + ".wav";
+
+                        let audioHTML = audioMsg.outerHTML;
+                        document.getElementById("contentO2m").value = audioHTML;
+                    }
+                }
+            })
+        });
+
+        recordObj.clear();
+    }
+    // 发送语音消息触发停止录音
+    function stopReO2o() {
+        recordObj.stop();
+
+        recordObj.exportWAV(function (wav_file) {
+            let objectUrl = JSON.stringify(window.URL.createObjectURL(wav_file));
+            let formData = new FormData();
+
+            formData.append("media", wav_file);
+            formData.append("src", objectUrl);
+
+            $.ajax({
+                url: serve + "/media_uploader",
+                type: 'post',
+                processData: false,
+                contentType: false,
+                data: formData,
+                dataType: 'json',
+                success: function (data) {
+                    console.log(data);
+                    if (data.CODE === 0) {
+                        document.getElementById("playerO2o").src = serve + "/get_music/SendOK.mp3";
+
+                        let audioMsg = document.createElement("audio");
+                        audioMsg.setAttribute("controls", "controls");
+                        audioMsg.src = objectUrl.slice(27, -1) + ".wav";
+
+                        let audioHTML = audioMsg.outerHTML;
+                        document.getElementById("contentO2o").value = audioHTML;
+                    }
+                }
+            })
+        });
+
+        recordObj.clear();
+    }
+
+    // 发送语音指令触发停止录音
+    function aiReO2m() {
+        recordObj.stop();
+
+        recordObj.exportWAV(function (wav_file) {
+            console.log(wav_file);
+            let formData = new FormData();
+            formData.append("media", wav_file);
+            $.ajax({
+                url: serve + "/ai_uploader",
+                type: 'post',
+                processData: false,
+                contentType: false,
+                data: formData,
+                dataType: 'json',
+                success: function (data) {
+                    console.log(data);
+                    document.getElementById("playerO2m").src = serve + "/get_chat/" + data.chat;
+                }
+            })
+        });
+
+        recordObj.clear();
+    }
+    // 发送语音指令触发停止录音
+    function aiReO2o() {
+        recordObj.stop();
+
+        recordObj.exportWAV(function (wav_file) {
+            console.log(wav_file);
+            let formData = new FormData();
+            formData.append("media", wav_file);
+            $.ajax({
+                url: serve + "/ai_uploader",
+                type: 'post',
+                processData: false,
+                contentType: false,
+                data: formData,
+                dataType: 'json',
+                success: function (data) {
+                    console.log(data);
+                    document.getElementById("playerO2o").src = "/get_chat/" + data.chat;
+                }
+            })
+        });
+
+        recordObj.clear();
+    }
+</script>
+</html>
